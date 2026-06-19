@@ -52,7 +52,7 @@ function LiveScores({ matches, loading, error }) {
   const todaysMatches = matches.filter((match) => new Date(match.date).toLocaleDateString('en-CA') === today)
   const visible = todaysMatches.length ? todaysMatches : matches.filter((match) => activeStatuses.has(match.status)).slice(0, 8)
   return <section id="scores" className="section dark-section">
-    <SectionHead number="01" eyebrow="Match centre" title="Live scores" detail="Auto-refreshes every 60 seconds" light />
+    <SectionHead number="01" eyebrow="Match centre" title="Live scores" detail="Auto-refreshes every 30 seconds" light />
     {visible.length ? <div className="match-grid">{visible.map((match) => <MatchCard key={match.id} match={match} />)}</div> : <EmptyState loading={loading} error={error} text="No World Cup matches are scheduled today." />}
   </section>
 }
@@ -77,6 +77,64 @@ function Groups({ groups, error }) {
   </section>
 }
 
+const standingsColumns = [
+  { key: 'played', label: 'P' },
+  { key: 'won', label: 'W' },
+  { key: 'draw', label: 'D' },
+  { key: 'lost', label: 'L' },
+  { key: 'goalsFor', label: 'GF' },
+  { key: 'goalsAgainst', label: 'GA' },
+  { key: 'gd', label: 'GD' },
+  { key: 'points', label: 'PTS' },
+]
+
+function Standings({ groups, loading, error }) {
+  const [sort, setSort] = useState({ key: 'points', dir: 'desc' })
+  const teams = useMemo(() => groups.flatMap((group) =>
+    (group.teams || []).map((team, index) => ({ ...team, group: group.name, groupPos: index + 1, qualified: index < 2 }))
+  ), [groups])
+
+  const sorted = useMemo(() => {
+    const tiebreak = (a, b) => (b.points - a.points) || (b.gd - a.gd) || (b.goalsFor - a.goalsFor)
+    return [...teams].sort((a, b) => {
+      let result
+      if (sort.key === 'team') result = (a.name || '').localeCompare(b.name || '') || -tiebreak(a, b)
+      else if (sort.key === 'group') result = (a.group || '').localeCompare(b.group || '') || a.groupPos - b.groupPos
+      else result = ((b[sort.key] || 0) - (a[sort.key] || 0)) || tiebreak(a, b)
+      return sort.dir === 'asc' ? -result : result
+    })
+  }, [teams, sort])
+
+  const toggle = (key) => setSort((current) => current.key === key
+    ? { key, dir: current.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: key === 'team' || key === 'group' ? 'asc' : 'desc' })
+  const indicator = (key) => sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''
+
+  return <section id="standings" className="section standings-section">
+    <SectionHead number="03" eyebrow="Every team, ranked" title="Standings" detail="Top 2 per group advance · click a column to sort" />
+    {error && <InlineNotice text={error} />}
+    {teams.length ? <div className="standings-wrap">
+      <table className="standings-table">
+        <thead><tr>
+          <th className="col-pos">#</th>
+          <th className="col-team sortable" onClick={() => toggle('team')}>Team{indicator('team')}</th>
+          <th className="sortable" onClick={() => toggle('group')}>GRP{indicator('group')}</th>
+          {standingsColumns.map((column) => <th key={column.key} className="sortable" onClick={() => toggle(column.key)}>{column.label}{indicator(column.key)}</th>)}
+        </tr></thead>
+        <tbody>
+          {sorted.map((team, index) => <tr key={team.id || `${team.group}-${team.code}`} className={team.qualified ? 'is-qualified' : ''}>
+            <td className="col-pos"><b>{index + 1}</b></td>
+            <td className="col-team">{team.qualified && <i className="q-badge">Q</i>}{team.crest ? <img src={team.crest} alt="" /> : <i className="crest-fallback" />}<span>{team.name || team.code}</span></td>
+            <td className="col-group">{team.group || '-'}</td>
+            {standingsColumns.map((column) => <td key={column.key} className={column.key === 'points' ? 'col-pts' : ''}>{column.key === 'gd' && team.gd > 0 ? `+${team.gd}` : team[column.key] ?? 0}</td>)}
+          </tr>)}
+        </tbody>
+      </table>
+    </div> : <EmptyState loading={loading} error={error} text="Standings appear once group matches kick off." />}
+    {teams.length ? <p className="standings-legend"><i className="q-badge">Q</i> Currently in the top 2 of its group — on track to reach the knockout stage.</p> : null}
+  </section>
+}
+
 function BracketMatch({ match, index }) {
   const name = (team) => team?.tla || team?.shortName || 'TBD'
   return <div className="bracket-match">
@@ -87,7 +145,7 @@ function BracketMatch({ match, index }) {
 
 function Bracket({ matches }) {
   return <section id="bracket" className="section bracket-section">
-    <SectionHead number="03" eyebrow="Win or go home" title="The bracket" detail="Slots update as teams advance" light />
+    <SectionHead number="04" eyebrow="Win or go home" title="The bracket" detail="Slots update as teams advance" light />
     <div className="bracket-scroll"><div className="bracket">
       {rounds.map(([label, stage, count]) => {
         const stageMatches = matches.filter((match) => match.stage === stage)
@@ -99,7 +157,7 @@ function Bracket({ matches }) {
 
 function Odds({ odds, error }) {
   return <section id="odds" className="section odds-section">
-    <SectionHead number="04" eyebrow="Kalshi market" title="Winner odds" detail="Updates every 30 seconds" />
+    <SectionHead number="05" eyebrow="Kalshi market" title="Winner odds" detail="Updates every 30 seconds" />
     {error && <InlineNotice text={error} />}
     <div className="odds-layout">
       <div className="odds-lede"><span className="outline-26">26</span><p>Who lifts the trophy?</p><small>Live market-implied chance based on the midpoint of Kalshi's YES bid and ask, with the last traded price as fallback.</small><a className="kalshi-link" href="https://kalshi.com/category/sports/soccer/world-soccer-cup/soccer-cup/games" target="_blank" rel="noreferrer">Bet on Kalshi <b>↗</b></a></div>
@@ -131,7 +189,7 @@ export default function App() {
   return <main>
     <header className="topbar">
       <a className="brand" href="#top"><b>WC<br />26</b><span><strong>FIFA World Cup 2026</strong><small>Live match centre</small></span></a>
-      <nav><a href="#scores">Scores</a><a href="#groups">Groups</a><a href="#bracket">Bracket</a><a href="#odds">Odds</a></nav>
+      <nav><a href="#scores">Scores</a><a href="#groups">Groups</a><a href="#standings">Standings</a><a href="#bracket">Bracket</a><a href="#odds">Odds</a></nav>
       <div className="live-pill"><i />{liveCount ? `${liveCount} LIVE` : 'LIVE DATA'}</div>
     </header>
     <section className="hero" id="top">
@@ -141,6 +199,7 @@ export default function App() {
     </section>
     <LiveScores matches={matches} loading={data.loading} error={data.football?.error || data.error} />
     <Groups groups={data.football?.groups || []} error={data.football?.error} />
+    <Standings groups={data.football?.groups || []} loading={data.loading} error={data.football?.error} />
     <Bracket matches={matches} />
     <Odds odds={data.odds?.odds || []} error={data.odds?.error} />
     <footer className="footer"><a className="brand" href="#top"><b>WC<br />26</b></a><p>Independent World Cup match centre.<br />Data refreshes automatically.</p><div><a href="https://www.espn.com/soccer/league/_/name/fifa.world" target="_blank" rel="noreferrer">ESPN scores ↗</a><a href="https://kalshi.com/category/sports/soccer/world-soccer-cup/soccer-cup/games" target="_blank" rel="noreferrer">Kalshi markets ↗</a></div></footer>
