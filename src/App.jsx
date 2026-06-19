@@ -19,7 +19,7 @@ function useDashboard() {
       .then((data) => mounted && setState({ ...data, loading: false }))
       .catch((error) => mounted && setState((current) => ({ ...current, loading: false, error: error.message })))
     load()
-    const timer = setInterval(load, 60_000)
+    const timer = setInterval(load, 30_000)
     return () => { mounted = false; clearInterval(timer) }
   }, [])
   return state
@@ -37,8 +37,8 @@ function MatchCard({ match }) {
   const live = activeStatuses.has(match.status)
   const date = match.date ? new Date(match.date) : null
   return <article className={`match-card ${live ? 'is-live' : ''}`}>
-    <div className="match-meta">
-      <span>{live ? `${match.minute || ''}' LIVE` : match.status === 'FINISHED' ? 'FULL TIME' : date?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+      <div className="match-meta">
+      <span>{live ? `${match.minute || ''} LIVE` : match.status === 'FINISHED' ? 'FULL TIME' : date?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       <span>{match.group?.replace('GROUP_', 'GROUP ') || match.stage?.replaceAll('_', ' ')}</span>
     </div>
     <div className="score-row"><Team team={match.home} /><strong>{match.homeScore ?? '-'}</strong></div>
@@ -97,16 +97,16 @@ function Bracket({ matches }) {
   </section>
 }
 
-function Odds({ odds, error, remaining }) {
+function Odds({ odds, error }) {
   return <section id="odds" className="section odds-section">
-    <SectionHead number="04" eyebrow="Market watch" title="Winner odds" detail="Best available decimal price" />
+    <SectionHead number="04" eyebrow="Kalshi market" title="Winner odds" detail="Updates every 30 seconds" />
     {error && <InlineNotice text={error} />}
     <div className="odds-layout">
-      <div className="odds-lede"><span className="outline-26">26</span><p>Who lifts the trophy?</p><small>Implied probability is calculated from decimal odds before bookmaker margin adjustment.</small>{remaining && <small>{remaining} API credits remaining</small>}</div>
+      <div className="odds-lede"><span className="outline-26">26</span><p>Who lifts the trophy?</p><small>Live market-implied chance based on the midpoint of Kalshi's YES bid and ask, with the last traded price as fallback.</small><a className="kalshi-link" href="https://kalshi.com/category/sports/soccer/world-soccer-cup/soccer-cup/games" target="_blank" rel="noreferrer">Bet on Kalshi <b>↗</b></a></div>
       <div className="odds-list">
         {(odds.length ? odds.slice(0, 12) : Array.from({ length: 8 })).map((item, index) => <article className="odds-card" key={item?.team || index}>
           <b>{String(index + 1).padStart(2, '0')}</b><strong>{item?.team || 'Awaiting market'}</strong>
-          <div><span>{item ? `${item.probability.toFixed(1)}%` : '--'}</span><em>{item?.decimal?.toFixed(2) || '--'}</em></div>
+          <div><span>{item ? `${item.probability.toFixed(1)}%` : '--'}</span><em>{item?.decimal ? `${item.decimal.toFixed(2)}x` : '--'}</em></div>
           <i style={{ width: `${item ? Math.min(item.probability * 3, 100) : 0}%` }} />
         </article>)}
       </div>
@@ -142,7 +142,7 @@ export default function App() {
     <LiveScores matches={matches} loading={data.loading} error={data.football?.error || data.error} />
     <Groups groups={data.football?.groups || []} error={data.football?.error} />
     <Bracket matches={matches} />
-    <Odds odds={data.odds?.odds || []} error={data.odds?.error} remaining={data.odds?.remaining} />
-    <footer className="footer"><a className="brand" href="#top"><b>WC<br />26</b></a><p>Independent World Cup match centre.<br />Data refreshes automatically.</p><div><a href="https://www.football-data.org/" target="_blank" rel="noreferrer">football-data.org ↗</a><a href="https://the-odds-api.com/" target="_blank" rel="noreferrer">The Odds API ↗</a></div></footer>
+    <Odds odds={data.odds?.odds || []} error={data.odds?.error} />
+    <footer className="footer"><a className="brand" href="#top"><b>WC<br />26</b></a><p>Independent World Cup match centre.<br />Data refreshes automatically.</p><div><a href="https://www.espn.com/soccer/league/_/name/fifa.world" target="_blank" rel="noreferrer">ESPN scores ↗</a><a href="https://kalshi.com/category/sports/soccer/world-soccer-cup/soccer-cup/games" target="_blank" rel="noreferrer">Kalshi markets ↗</a></div></footer>
   </main>
 }
